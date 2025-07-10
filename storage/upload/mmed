@@ -1,0 +1,105 @@
+#!/bin/sh
+#
+# MME       Bring up/down mme
+#
+# chkconfig: 2345 10 90
+# description: Activates/Deactivates all network interfaces configured to \
+#              start at boot time.
+#
+###########################################################################
+#
+#      -*- eLTE Warrior-4 MME -*-
+#
+# (C) Copyright 2020 The eLTE Warrior-4 Foundation
+#
+# Author(s): SinCholRyon 
+#
+
+name=$(basename $0)
+
+#if [ -z $SA_AMF_COMPONENT_NAME ]; then
+#	logger -st $name "not AMF component context"
+#	exit 199
+#fi
+
+prog="mme"
+binary=/usr/bin/$prog
+
+if ! [ -x $binary ]; then
+	logger -st $name  "$binary not executable"
+	exit 198
+fi
+
+# Source LSB functions library
+. /lib/lsb/init-functions
+
+piddir="/var/run"
+pidfile=""
+
+RETVAL=0
+
+start()
+{
+	args="-c /usr/local/etc/waf/mme.conf -d $1 "
+	echo -n "Starting $prog: "
+	start_daemon -p $pidfile $binary $args
+	RETVAL=$?
+	if [ $RETVAL -ne 0 ]; then
+		logger -st $name "Starting $binary failed"
+	else
+		echo "OK"
+	fi
+	return $RETVAL
+}
+
+stop()
+{
+	echo -n "Stopping $prog: "
+	killproc -p $pidfile -d 0 $binary
+	RETVAL=$?
+	if [ $RETVAL -ne 0 ]; then
+		logger -st $name "killproc $binary failed"
+	else
+		echo "OK"
+	fi
+	return $RETVAL
+}
+
+status()
+{
+	pidofproc -p $pidfile $binary
+	RETVAL=$?
+	return $RETVAL
+}
+
+pidfile="$piddir/mme.pid"
+
+CMD=$1
+case $CMD in
+	start|instantiate)
+		shift
+		start $*
+		RETVAL=$?
+		;;
+	stop|cleanup)
+		stop $*
+		RETVAL=$?
+		;;
+	status)
+		status
+		RETVAL=$?
+		;;
+	restart)
+		stop $*
+		RETVAL=$?
+		shift
+		start $*
+		RETVAL=$?
+		;;
+	*)
+		echo "Usage: $0 {start|instantiate|stop|cleanup|restart|status}"
+		RETVAL=2
+esac
+
+exit $RETVAL
+
